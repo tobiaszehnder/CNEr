@@ -212,7 +212,7 @@ ceScanAxt <- function(axts, tFilter=NULL, qFilter=NULL,
 
 ### -----------------------------------------------------------------
 ### Merge two side cnes (GRangePairs object), mcols will be discarded.
-### strand information is no longer important.
+### strand information is no longer important. ### 24.07.2020, Tobi: Yes it is. Keep it!
 ### Exported!
 setGeneric("cneMerge", function(cne12, cne21) standardGeneric("cneMerge"))
 
@@ -231,10 +231,13 @@ cneMergeGRangePairs <- function(cne12, cne21){
   if(!is(cne12, "GRangePairs") || !is(cne21, "GRangePairs")){
     stop("cne12 and cne21 must be a GRangePairs object!")
   }
-  strand(cne12@first) <- strand(cne12@second) <- strand(cne21@first) <- 
-    strand(cne21@second) <- "+"
+  # strand(cne12@first) <- strand(cne12@second) <- strand(cne21@first) <-  # 24.07.2020, Tobi: Keep strand info!
+  #   strand(cne21@second) <- "+"
   cne <- c(cne12, swap(cne21))
-  
+  idx <- which(strand(cne@first) == '-') # 24.07.2020, Tobi: Put potential '-' strand info on second pair, so that every range in cne@first is '+'.
+  strand(cne@first)[idx] <- '+'
+  strand(cne@second)[idx] <- '-'
+
   # 1. using reduce: the problem: it won't deal with {1,2,3}, {1,2} case
   # firstReduce <- reduce(first(cne), with.revmap=TRUE)
   # lastReduce <- reduce(last(cne), with.revmap=TRUE)
@@ -307,6 +310,7 @@ blatCNE <- function(cne, blatOptions=NULL, cutIdentity=90){
                         blatOptions){
     whichAssembly <- match.arg(whichAssembly)
     temp_cne <- tempfile(pattern="cne-")
+	temp_cne_fasta <- gsub('cne', 'cne_fa', temp_cne)
     temp_psl <- tempfile(pattern="psl-")
     # For Blat, the start is 0-based and end is 1-based. 
     # So make cne's coordinates to comply with it.
@@ -318,6 +322,10 @@ blatCNE <- function(cne, blatOptions=NULL, cutIdentity=90){
                                 trim=TRUE, scientific=FALSE),
                     "-", format(end(first(cne@CNEMerged)),
                                 trim=TRUE, scientific=FALSE))
+	  seqs <- import.2bit(cne@assembly1Fn, which=first(cne@CNEMerged))
+      names <- paste0(seqnames(first(cne@CNEMerged)), ':',
+                 	  format(start(first(cne@CNEMerged))-1, trim=TRUE, scientific=FALSE), '-',
+                      format(end(first(cne@CNEMerged)), trim=TRUE, scientific=FALSE))
     }else{
       assemblyTwobit <- cne@assembly2Fn
       cneDataFrame <- paste0(assemblyTwobit, ":", 
@@ -326,14 +334,27 @@ blatCNE <- function(cne, blatOptions=NULL, cutIdentity=90){
                                 trim=TRUE, scientific=FALSE),
                     "-", format(end(second(cne@CNEMerged)),
                                 trim=TRUE, scientific=FALSE))
+	  seqs <- import.2bit(cne@assembly2Fn, which=second(cne@CNEMerged))
+      names <- paste0(seqnames(second(cne@CNEMerged)), ':',
+                      format(start(second(cne@CNEMerged))-1, trim=TRUE, scientific=FALSE), '-',
+                      format(end(second(cne@CNEMerged)), trim=TRUE, scientific=FALSE))
     }
     cneDataFrame <- unique(cneDataFrame)
     writeLines(cneDataFrame, con=temp_cne)
-    cmd <- paste0(cne@aligner, " ", blatOptions, " ",
-                  "-minIdentity=", cutIdentity,
-                  " ", assemblyTwobit, " ", temp_cne, " ", temp_psl)
-    my.system(cmd)
+
+	# write fasta (current blat version encounters problems reading the 2bit format)
+	s_list <- lapply(as.character(seqs), function(x) unlist(strsplit(x,'')))
+	library(seqinr)
+	write.fasta(s_list, names=names, file.out=temp_cne_fasta)
+	cmd <- paste0(cne@aligner, " ", blatOptions, " ", assemblyTwobit, " ", "-minIdentity=", cutIdentity, " ", temp_cne_fasta, " ", temp_psl)
+	
+    # cmd <- paste0(cne@aligner, " ", blatOptions, " ",
+    #               "-minIdentity=", cutIdentity,
+    #               " ", assemblyTwobit, " ", temp_cne, " ", temp_psl)
+
+	my.system(cmd)
     unlink(temp_cne)
+	unlink(temp_cne_fasta)
     return(temp_psl)
   }
   psl1Fn <- .run_blat(cne, cutIdentity, "first", blatOptions)

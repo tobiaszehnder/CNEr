@@ -23,16 +23,18 @@ importMethodsFrom(DBI, dbGetQuery)
 importMethodsFrom(RSQLite, dbConnect, dbDisconnect, dbWriteTable)
 importMethodsFrom(methods, initialize, show)
 importMethodsFrom(Biostrings, compareStrings)
-importMethodsFrom(S4Vectors, Rle, isConstant, runmean, elementNROWS, first,
+importMethodsFrom(S4Vectors, Rle, isConstant, elementNROWS, first,
                   showAsCell, extractROWS, mcols, "mcols<-", split, runValue,
                   as.factor, "%in%", second, "first<-", "second<-",
                   runLength)
+# importMethodsFrom(caTools, runmean)
 importMethodsFrom(IRanges, slice, ranges, "ranges<-")
 importMethodsFrom(GenomicAlignments, last)
 
 ### -----------------------------------------------------------------
 ### Import ordinary functions, variables in other packages
 ###
+importFrom(caTools, runmean)
 importFrom(GenomeInfoDb, Seqinfo)
 importFrom(GenomicRanges, GRanges)
 importFrom(GenomicAlignments, explodeCigarOps, CIGAR_OPS, explodeCigarOpLengths)

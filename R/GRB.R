@@ -37,7 +37,9 @@ makeGRBs <- function(x, winSize=NULL, genes=NULL, ratio=1,
     stop("The `genes` must be a `GRanges` object!")
   }
 
-  density <- suppressWarnings(runmean(cov, k=winSize,  endrule="constant"))
+  density <- sapply(cov, function(x) Rle(caTools::runmean(x, k=winSize, endrule='constant', alg='fast')), simplify=F) # Tobi, 10.08.2020: caTools::runmean in parallel is about 30 times faster than S4Vectors::runmean()
+  print('computed density')
+  # density <- suppressWarnings(runmean(cov, k=winSize,  endrule="constant"))
   if(background == "genome"){
     # calculate the background percentage of coverage
     totalGenomeSize <- 
@@ -60,13 +62,14 @@ makeGRBs <- function(x, winSize=NULL, genes=NULL, ratio=1,
     }
     slicedDensities <- RleViewsList(slicedDensities)
   }
-  
+  print(1)
   clusterRanges <- GRanges(seqnames=rep(names(slicedDensities),
                                         elementNROWS(slicedDensities)),
                            ranges=unlist(ranges(slicedDensities)),
                            strand="+",
                            seqinfo=seqinfo(x))
 
+						   
   # shrink the GRBs with actual CNE locations
   hits <- findOverlaps(x, clusterRanges, type="within", select="all",
                        ignore.strand=TRUE)
